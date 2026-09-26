@@ -1,0 +1,6 @@
+# Credenciais (Wi-Fi, MQTT) - nunca versionar
+esp32-pc-remote/secrets.h
+
+# Artefatos de compilação
+build/
+node_modules/

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Meu PC</title>
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Meu PC">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --line: #334155; --text: #e2e8f0; --muted: #94a3b8;
+      --green: #22c55e; --red: #ef4444; --amber: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+      display: flex; flex-direction: column; align-items: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    main { width: 100%; max-width: 420px; flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 20px 0; }
+    header { display: flex; justify-content: space-between; align-items: center; }
+    h1 { font-size: 22px; margin: 0; }
+    .icon-btn { background: none; border: 0; color: var(--muted); font-size: 24px; padding: 8px; cursor: pointer; }
+    .pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line);
+            border-radius: 999px; padding: 6px 12px; font-size: 14px; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+    .dot.ok { background: var(--green); } .dot.bad { background: var(--red); } .dot.wait { background: var(--amber); }
+    .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+    #power {
+      width: 180px; height: 180px; border-radius: 50%; border: 4px solid var(--green);
+      background: radial-gradient(circle, #14532d55, transparent 70%); color: var(--green);
+      display: grid; place-items: center; cursor: pointer; transition: transform .1s, opacity .2s;
+    }
+    #power:active { transform: scale(.95); }
+    #power:disabled { border-color: var(--line); color: var(--line); background: none; cursor: default; }
+    #power.busy { animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: .5; } }
+    #msg { min-height: 1.4em; text-align: center; color: var(--muted); }
+    #msg.ok { color: var(--green); } #msg.bad { color: var(--red); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    .card h2 { font-size: 14px; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+    #log { list-style: none; margin: 0; padding: 0; font-size: 14px; color: var(--muted); max-height: 150px; overflow-y: auto; }
+    #log li { padding: 4px 0; border-top: 1px solid var(--line); }
+    #log li:first-child { border-top: 0; }
+    form { display: flex; flex-direction: column; gap: 12px; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+    input { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+            padding: 12px; font-size: 16px; width: 100%; }
+    .btn { background: var(--green); color: #052e16; border: 0; border-radius: 8px; padding: 12px; font-size: 16px;
+           font-weight: 600; cursor: pointer; }
+    .btn.secondary { background: var(--card); color: var(--text); border: 1px solid var(--line); }
+    .hint { font-size: 13px; color: var(--muted); margin: 0; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main id="home" hidden>
+    <header>
+      <h1>Meu PC</h1>
+      <button class="icon-btn" id="open-settings" aria-label="Configurações">⚙️</button>
+    </header>
+    <div class="pills">
+      <span class="pill"><span class="dot" id="broker-dot"></span><span id="broker-text">Broker</span></span>
+      <span class="pill"><span class="dot" id="esp-dot"></span><span id="esp-text">ESP32</span></span>
+    </div>
+    <div class="center">
+      <button id="power" aria-label="Ligar o PC" disabled>
+        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <path d="M12 3v8"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/>
+        </svg>
+      </button>
+      <div id="msg">Toque para ligar o PC</div>
+    </div>
+    <section class="card">
+      <h2>Histórico</h2>
+      <ul id="log"></ul>
+    </section>
+  </main>
+
+  <main id="settings" hidden>
+    <header><h1>Configurações</h1></header>
+    <form id="settings-form" class="card">
+      <label>Servidor (cluster HiveMQ)
+        <input name="host" placeholder="xxxx.s1.eu.hivemq.cloud" required autocapitalize="off" autocorrect="off" spellcheck="false">
+      </label>
+      <label>Usuário
+        <input name="user" required autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username">
+      </label>
+      <label>Senha
+        <input name="pass" type="password" required autocomplete="current-password">
+      </label>
+      <p class="hint">Fica salvo só neste aparelho. Use o usuário do app, não o do ESP32.</p>
+      <button class="btn" type="submit">Salvar e conectar</button>
+      <button class="btn secondary" type="button" id="cancel-settings">Cancelar</button>
+    </form>
+  </main>
+
+  <script src="mqtt.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
