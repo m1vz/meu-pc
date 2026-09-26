@@ -1,11 +1,27 @@
 # Controle remoto do PC — ESP32 + Wake-on-LAN + MQTT + PWA
 
+**📱 App: https://m1vz.github.io/meu-pc/**
+
 Ligar o PC (Windows 11, Ethernet) de qualquer lugar pelo celular. Um ESP32 na rede de casa recebe
 o comando via MQTT e envia um Magic Packet (Wake-on-LAN) para a placa de rede do PC.
 
 ```
 Celular (PWA) ──MQTT/WSS──▶ Broker MQTT (nuvem) ──MQTT/TLS──▶ ESP32 ──UDP broadcast (WoL)──▶ PC
 ```
+
+## Como usar
+
+Precisa de um ESP32 já gravado e ligado na rede de casa, e de um usuário do broker MQTT para o app
+(veja [Criar o broker](#criar-o-broker-hivemq-cloud-plano-serverless-gratuito)).
+
+1. No celular, abra **https://m1vz.github.io/meu-pc/**
+2. Na tela de configurações, preencha:
+   - **Servidor**: a URL do cluster HiveMQ (ex.: `xxxx.s1.eu.hivemq.cloud`)
+   - **Usuário** e **Senha**: o usuário do app (não o do ESP32)
+3. Toque em **Salvar e conectar**. Os dados ficam salvos só no aparelho.
+4. Adicione à tela de início: no Android (Chrome), menu ⋮ → **Adicionar à tela inicial** / **Instalar app**;
+   no iPhone (Safari), botão Compartilhar → **Adicionar à Tela de Início**.
+5. Quando o ESP32 aparecer `online`, toque em **LIGAR**.
 
 ## Hardware / ambiente
 
@@ -52,12 +68,15 @@ e a 921600 baud a transferência cai. Por isso o `flash.ps1` usa 115200 e `--bef
 - [x] **Fase 4 — MQTT**: HiveMQ Cloud Serverless, TLS na 8883 validando o certificado com as
       raízes ISRG X1/X2 (PubSubClient 2.8). Usuários `esp32` (no `secrets.h`) e `app67` (PC/app).
       Testado pela internet com `mqtt-test.ps1`: `STATUS` → `online`, `LIGAR` → `wol_enviado`.
-- [~] **Fase 5 — App web (PWA)**: pasta `app/` (HTML/JS puro, mqtt.js 5.16 incluso, sem build).
+- [x] **Fase 5 — App web (PWA)**: pasta `app/` (HTML/JS puro, mqtt.js 5.16 incluso, sem build).
       Conecta via `wss://<cluster>:8884/mqtt`; host/usuário/senha digitados na tela de
       configuração e salvos só no aparelho (nada de credencial no código). Botão LIGAR fica
       ativo só com o ESP32 `online`; mostra a resposta ou "não respondeu" após 8 s.
       Testado no Chrome (localhost): conexão WSS, login recusado tratado, service worker ativo.
-      Rodar local: `npx http-server app -p 8080`. **Falta: hospedar em HTTPS e instalar no celular.**
+      Rodar local: `npx http-server app -p 8080`.
+      Publicado no GitHub Pages (https://m1vz.github.io/meu-pc/, deploy automático pelo
+      `.github/workflows/pages.yml` a cada push em `app/`). **Testado no celular: login real no
+      broker e botão LIGAR funcionando.**
 - [ ] Fase 6 — Revisão de segurança (autenticação + TLS)
 
 ## MQTT (Fase 4)
