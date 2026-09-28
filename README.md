@@ -1,101 +1,166 @@
-# Controle remoto do PC — ESP32 + Wake-on-LAN + MQTT + PWA
+<div align="center">
 
-**📱 App: https://m1vz.github.io/meu-pc/**
+# 🖥️ Meu PC, de qualquer lugar
 
-Ligar o PC (Windows 11, Ethernet) de qualquer lugar pelo celular. Um ESP32 na rede de casa recebe
-o comando via MQTT e envia um Magic Packet (Wake-on-LAN) para a placa de rede do PC.
+**Ligue seu computador pelo celular, de qualquer lugar do mundo, usando um ESP32 de poucos reais.**
 
-```
-Celular (PWA) ──MQTT/WSS──▶ Broker MQTT (nuvem) ──MQTT/TLS──▶ ESP32 ──UDP broadcast (WoL)──▶ PC
-```
+![ESP32](https://img.shields.io/badge/ESP32-Arduino-0a7ea4?logo=espressif&logoColor=white)
+![MQTT](https://img.shields.io/badge/MQTT-TLS-660066?logo=mqtt&logoColor=white)
+![Wake-on-LAN](https://img.shields.io/badge/Wake--on--LAN-Magic%20Packet-2ea44f)
+![PWA](https://img.shields.io/badge/App-PWA-5a0fc8?logo=pwa&logoColor=white)
 
-## Como usar
+### 👉 [Abrir o app](https://m1vz.github.io/meu-pc-app/) 👈
 
-Precisa de um ESP32 já gravado e ligado na rede de casa, e de um usuário do broker MQTT para o app
-(veja [Criar o broker](#criar-o-broker-hivemq-cloud-plano-serverless-gratuito)).
+*Você não precisa hospedar nada: é só abrir o link, digitar os dados do **seu** broker e pronto.*
 
-1. No celular, abra **https://m1vz.github.io/meu-pc/**
-2. Na tela de configurações, preencha:
-   - **Servidor**: a URL do cluster HiveMQ (ex.: `xxxx.s1.eu.hivemq.cloud`)
-   - **Usuário** e **Senha**: o usuário do app (não o do ESP32)
-3. Toque em **Salvar e conectar**. Os dados ficam salvos só no aparelho.
-4. Adicione à tela de início: no Android (Chrome), menu ⋮ → **Adicionar à tela inicial** / **Instalar app**;
-   no iPhone (Safari), botão Compartilhar → **Adicionar à Tela de Início**.
-5. Quando o ESP32 aparecer `online`, toque em **LIGAR**.
+</div>
 
-## Hardware / ambiente
+---
 
-| Item | Valor |
-|---|---|
-| Placa | ESP32 Dev Module (ESP32-WROOM-32), USB-serial **CH340** em **COM3** |
-| Core | `esp32:esp32` 3.3.12 (arduino-cli 1.5.1 que vem com o Arduino IDE) |
-| PC alvo | MAC `B0:82:E2:4B:C2:9A` (Ethernet) |
-| Node.js | v24.21.0 |
-| ESP32 na rede | hostname `esp32-pc-remote`, IP 192.168.1.11 |
+## 📖 O que é isso?
 
-## Estrutura
+Um projeto para **ligar o PC remotamente**, sem mexer na placa-mãe, sem relé e sem abrir o gabinete.
 
-```
-esp32-pc-remote/esp32-pc-remote.ino   sketch do ESP32
-esp32-pc-remote/ca_cert.h             certificados raiz Let's Encrypt (validação TLS do broker)
-flash.ps1                             compila + grava (esptool, 115200 baud, sem auto-reset)
-monitor.ps1                           lê a Serial (e opcionalmente envia um comando)
-mqtt-test.ps1                         escuta meu-pc/# no broker e envia um comando (via npx mqtt)
-app/                                  PWA (index.html, app.js, sw.js, manifest, ícones)
+Um ESP32 fica ligado em casa, conectado ao Wi-Fi. Quando você toca no botão do app, o comando viaja pela internet até ele, e ele acorda o PC usando **Wake-on-LAN**, um recurso que já existe na maioria das placas de rede.
+
+## ⚙️ Como funciona
+
+```mermaid
+flowchart LR
+    A["📱 App no celular<br/>(PWA)"] -- "WSS (criptografado)" --> B[("☁️ Broker MQTT<br/>HiveMQ Cloud")]
+    B -- "MQTT + TLS" --> C["📡 ESP32<br/>em casa"]
+    C -- "Magic Packet<br/>(UDP broadcast)" --> D["💻 PC"]
 ```
 
-## Como gravar o ESP32
+1. O app publica `LIGAR` no tópico `meu-pc/comando` do broker.
+2. O ESP32 está conectado ao mesmo broker (é ele que puxa a conexão, então **não precisa abrir porta no roteador**).
+3. Ao receber o comando, o ESP32 dispara o Magic Packet na rede local.
+4. O PC acorda e o ESP32 responde `wol_enviado`, que aparece no app.
 
-Esta placa **não entra sozinha em modo download** (erro `Wrong boot mode detected (0x13)`),
-e a 921600 baud a transferência cai. Por isso o `flash.ps1` usa 115200 e `--before no-reset`.
+## 🧰 O que você precisa
 
-1. Segure **BOOT**, aperte e solte **EN**, solte **BOOT**
-2. `powershell -ExecutionPolicy Bypass -File .\flash.ps1`
-3. Ler a serial: `powershell -ExecutionPolicy Bypass -File .\monitor.ps1 -Seconds 10`
+| Item | Observação |
+| --- | --- |
+| **ESP32** (DevKit com ESP32-WROOM-32) | Qualquer placa comum serve |
+| **Cabo USB de dados** | Só para gravar; depois basta um carregador de celular |
+| **PC com Wake-on-LAN** | De preferência ligado por **cabo Ethernet** |
+| **Wi-Fi 2,4 GHz** | O ESP32 não conecta em 5 GHz |
+| **Conta no HiveMQ Cloud** | O plano gratuito (Serverless) é suficiente |
+| **Arduino IDE** | Com o pacote de placas *esp32* da Espressif |
 
-## Progresso
+## 🚀 Passo a passo
 
-- [x] **Fase 1 — Setup do ESP32**: core esp32 instalado, sketch de teste gravado,
-      Serial imprimindo `ESP32 funcionando!` a cada 1 s.
-- [x] **Fase 2 — Wi-Fi**: conecta na rede de casa (2,4 GHz), IP **192.168.1.11** (DHCP), RSSI -37 dBm.
-      Reconexão automática pelo driver + nova tentativa a cada 10 s se continuar sem conexão.
-      Credenciais em `esp32-pc-remote/secrets.h` (fora do git; modelo em `secrets.example.h`).
-- [x] **Fase 3 — Wake-on-LAN local**: comando `LIGAR` na Serial envia o Magic Packet
-      (3x para 192.168.1.255 e 255.255.255.255, UDP 9). **Testado com o PC desligado: ligou.**
-      Windows: Wake on Magic Packet e Shutdown WoL habilitados, inicialização rápida desativada.
-      Atalho: botão **BOOT** (GPIO0) = LIGAR. LED azul (GPIO2): aceso = Wi-Fi ok,
-      3 piscadas rápidas = pacote enviado, 1 piscada longa = falha (sem Wi-Fi).
-- [x] **Fase 4 — MQTT**: HiveMQ Cloud Serverless, TLS na 8883 validando o certificado com as
-      raízes ISRG X1/X2 (PubSubClient 2.8). Usuários `esp32` (no `secrets.h`) e `app67` (PC/app).
-      Testado pela internet com `mqtt-test.ps1`: `STATUS` → `online`, `LIGAR` → `wol_enviado`.
-- [x] **Fase 5 — App web (PWA)**: pasta `app/` (HTML/JS puro, mqtt.js 5.16 incluso, sem build).
-      Conecta via `wss://<cluster>:8884/mqtt`; host/usuário/senha digitados na tela de
-      configuração e salvos só no aparelho (nada de credencial no código). Botão LIGAR fica
-      ativo só com o ESP32 `online`; mostra a resposta ou "não respondeu" após 8 s.
-      Testado no Chrome (localhost): conexão WSS, login recusado tratado, service worker ativo.
-      Rodar local: `npx http-server app -p 8080`.
-      Publicado no GitHub Pages (https://m1vz.github.io/meu-pc/, deploy automático pelo
-      `.github/workflows/pages.yml` a cada push em `app/`). **Testado no celular: login real no
-      broker e botão LIGAR funcionando.**
-- [ ] Fase 6 — Revisão de segurança (autenticação + TLS)
+### 1. Prepare o PC para acordar pela rede
 
-## MQTT (Fase 4)
+1. **BIOS/UEFI:** ative *Wake on LAN* (às vezes chamado de *Power On by PCI-E*) e **desative** *ErP/EuP*, que corta a energia da placa de rede quando o PC desliga.
+2. **Windows:** no Gerenciador de Dispositivos, abra sua placa de rede → *Gerenciamento de Energia* → marque **Permitir que este dispositivo ative o computador** e **Permitir apenas um Magic Packet**.
+3. Ainda na placa de rede, aba *Avançado*: ative **Wake on Magic Packet** e **Shutdown Wake-On-Lan**, se existirem.
+4. Desative a **Inicialização rápida** (Painel de Controle → Opções de Energia).
+5. Descubra o **MAC** da placa de rede: `ipconfig /all` → *Endereço Físico*.
+
+> 💡 O comando de teste é desligar pelo menu **Desligar** (não hibernar) e esperar uns 10 segundos antes de tentar acordar.
+
+### 2. Crie o broker MQTT (HiveMQ Cloud, grátis)
+
+1. Crie a conta em [console.hivemq.cloud](https://console.hivemq.cloud) e escolha **Nuvem → Serverless (Free)**.
+2. Em *Visão geral*, copie a **URL do cluster** (`xxxx.s1.eu.hivemq.cloud`).
+3. Em *Gestão de Acessos*, crie **dois usuários com senhas diferentes**:
+   - um para o **ESP32**
+   - um para o **app/celular**
+
+   Anote as senhas na hora: o HiveMQ só mostra uma vez.
+
+### 3. Grave o ESP32
+
+1. Clone este repositório.
+2. Copie `esp32-pc-remote/secrets.example.h` para `esp32-pc-remote/secrets.h` e preencha Wi-Fi, host do broker, usuário/senha do ESP32 e o MAC do seu PC.
+3. No Arduino IDE, instale o pacote **esp32** (Espressif) e a biblioteca **PubSubClient**.
+4. Selecione a placa **ESP32 Dev Module**, escolha a porta e faça o upload.
+5. Abra o Serial Monitor (115200 baud) e confira `[WiFi] Conectado!` e `[MQTT] Conectado!`.
+
+<details>
+<summary>⚠️ Deu erro <code>Wrong boot mode detected (0x13)</code> no upload?</summary>
+
+Placas com chip **CH340** às vezes não entram sozinhas em modo de gravação. Faça assim: segure **BOOT**, aperte e solte **EN**, solte **BOOT** e rode o upload de novo. Este repositório também traz o `flash.ps1`, que grava a 115200 baud sem auto-reset (para Windows/PowerShell com arduino-cli).
+
+</details>
+
+Depois de gravar, **tire o ESP32 do USB do PC** e ligue-o em um carregador de celular na tomada. Se ele ficar no USB do PC, desliga junto com o PC.
+
+### 4. Use o app
+
+1. Abra **[m1vz.github.io/meu-pc-app](https://m1vz.github.io/meu-pc-app/)** no celular.
+2. Preencha:
+   - **Servidor:** a URL do seu cluster HiveMQ
+   - **Usuário e senha:** do usuário **do app** (não o do ESP32)
+3. Toque em **Salvar e conectar**.
+4. Instale como aplicativo:
+   - **Android:** menu ⋮ → *Instalar app*
+   - **iPhone:** Compartilhar → *Adicionar à Tela de Início*
+
+🔒 **Seus dados ficam só no seu aparelho.** O app roda inteiro no navegador e conversa direto com o *seu* broker. Não existe servidor intermediário, então quem hospeda o link nunca vê seu host, usuário ou senha.
+
+## 📡 Tópicos MQTT
 
 | Tópico | Direção | Conteúdo |
-|---|---|---|
+| --- | --- | --- |
 | `meu-pc/comando` | app → ESP32 | `LIGAR` ou `STATUS` (QoS 1, **sem retain**) |
-| `meu-pc/status` | ESP32 → app | `online` / `offline` (retido; `offline` vem do Last Will se o ESP32 cair) |
-| `meu-pc/resposta` | ESP32 → app | JSON, ex.: `{"comando":"LIGAR","resultado":"wol_enviado","uptime":123}` |
+| `meu-pc/status` | ESP32 → app | `online` / `offline` (retido; o `offline` vem do Last Will se o ESP32 cair) |
+| `meu-pc/resposta` | ESP32 → app | JSON, ex.: `{"comando":"LIGAR","resultado":"wol_enviado"}` |
 
-Resultados possíveis: `wol_enviado`, `falha` (sem Wi-Fi), `ignorado` (LIGAR repetido em < 5 s),
-`online` (resposta ao STATUS), `desconhecido`.
+Resultados possíveis: `wol_enviado`, `falha` (sem Wi-Fi), `ignorado` (LIGAR repetido em menos de 5 s), `online` (resposta ao STATUS) e `desconhecido`.
 
-### Criar o broker (HiveMQ Cloud, plano Serverless gratuito)
-1. Crie a conta em https://console.hivemq.cloud e um cluster **Serverless (Free)**
-2. Em **Overview**, copie a URL do cluster (`xxxx.s1.eu.hivemq.cloud`) → `MQTT_HOST` no `secrets.h`
-3. Em **Access Management**, crie dois usuários: `esp32` (vai no `secrets.h`) e `app67` (PC/celular)
-4. Grave o ESP32 (`flash.ps1`) e confira na Serial: `[MQTT] Conectado!`
-5. Teste pelo PC: `powershell -ExecutionPolicy Bypass -File .\mqtt-test.ps1 -User app67 -Password <senha> -Send LIGAR`
+## 💡 Indicadores da placa
 
-Na Serial, `[MQTT] Falhou, estado -2` = problema de rede/TLS (host/porta errados);
-estado `4` ou `5` = usuário/senha recusados.
+- **LED azul aceso:** Wi-Fi conectado
+- **3 piscadas rápidas:** Magic Packet enviado
+- **1 piscada longa:** falha (sem Wi-Fi)
+- **Botão BOOT:** funciona como atalho de LIGAR, sem precisar do app
+
+## 🛠️ Solução de problemas
+
+| Sintoma | Provável causa |
+| --- | --- |
+| `[MQTT] Falhou, estado -2` | Host ou porta errados, ou problema de rede/TLS |
+| `[MQTT] Falhou, estado 4` ou `5` | Usuário ou senha do ESP32 recusados |
+| App diz "usuário ou senha recusados" | Você usou o usuário do ESP32 no app, ou a senha está errada |
+| Pacote enviado, mas o PC não liga | Wake-on-LAN não está ativo na BIOS/Windows, ou o *ErP/EuP* está ligado. Confira se o LED da porta Ethernet continua aceso com o PC desligado |
+| ESP32 não conecta no Wi-Fi | A rede precisa ser 2,4 GHz |
+| Botão LIGAR desabilitado no app | O ESP32 está offline |
+
+## 🔐 Segurança
+
+- **Nunca publique `LIGAR` com a opção *retain*.** O broker guardaria a mensagem e o PC ligaria toda vez que o ESP32 reconectasse.
+- Use **senhas diferentes** para o usuário do ESP32 e o do app.
+- A conexão com o broker é sempre **criptografada (TLS)**, e o ESP32 valida o certificado do servidor.
+- O arquivo `secrets.h` está no `.gitignore` e **não deve ser enviado ao GitHub**.
+
+## 📁 Estrutura do repositório
+
+```
+esp32-pc-remote/
+├── esp32-pc-remote.ino    firmware do ESP32
+├── ca_cert.h              certificados raiz para validar o TLS do broker
+└── secrets.example.h      modelo de configuração (copie para secrets.h)
+
+flash.ps1                  compila e grava (Windows/PowerShell)
+monitor.ps1                lê a Serial e envia comandos
+mqtt-test.ps1              testa o broker pelo PC (escuta e envia comandos)
+```
+
+## 🗺️ Como o projeto foi construído
+
+- [x] **Fase 1:** setup do ESP32 e primeiro upload
+- [x] **Fase 2:** conexão Wi-Fi com reconexão automática
+- [x] **Fase 3:** Wake-on-LAN local, testado com o PC desligado
+- [x] **Fase 4:** MQTT com TLS no HiveMQ Cloud
+- [x] **Fase 5:** app web (PWA) instalável no celular
+- [ ] **Próximos passos:** revisão final de segurança e detecção do estado real do PC (ligado/desligado)
+
+---
+
+<div align="center">
+
+Feito com 🔌 por [@m1vz](https://github.com/m1vz)
+
+</div>
