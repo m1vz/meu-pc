@@ -56,7 +56,7 @@ flowchart LR
 2. **Windows:** no Gerenciador de Dispositivos, abra sua placa de rede → *Gerenciamento de Energia* → marque **Permitir que este dispositivo ative o computador** e **Permitir apenas um Magic Packet**.
 3. Ainda na placa de rede, aba *Avançado*: ative **Wake on Magic Packet** e **Shutdown Wake-On-Lan**, se existirem.
 4. Desative a **Inicialização rápida** (Painel de Controle → Opções de Energia).
-5. Descubra o **MAC** da placa de rede: `ipconfig /all` → *Endereço Físico*.
+5. Descubra o **MAC** da placa de rede: `ipconfig /all` → *Endereço Físico*. Você vai usar no passo 3.
 
 > 💡 O comando de teste é desligar pelo menu **Desligar** (não hibernar) e esperar uns 10 segundos antes de tentar acordar.
 
@@ -70,18 +70,70 @@ flowchart LR
 
    Anote as senhas na hora: o HiveMQ só mostra uma vez.
 
-### 3. Grave o ESP32
+### 3. Configure e grave o ESP32
 
-1. Clone este repositório.
-2. Copie `esp32-pc-remote/secrets.example.h` para `esp32-pc-remote/secrets.h` e preencha Wi-Fi, host do broker, usuário/senha do ESP32 e o MAC do seu PC.
-3. No Arduino IDE, instale o pacote **esp32** (Espressif) e a biblioteca **PubSubClient**.
-4. Selecione a placa **ESP32 Dev Module**, escolha a porta e faça o upload.
-5. Abra o Serial Monitor (115200 baud) e confira `[WiFi] Conectado!` e `[MQTT] Conectado!`.
+O firmware é o mesmo para todo mundo. **A única coisa que você edita é um arquivo de configuração, o `secrets.h`.** Não precisa mexer no código (`.ino`) nem no `ca_cert.h`.
+
+**a) Crie o `secrets.h`**
+
+Dentro da pasta `esp32-pc-remote/`, copie o `secrets.example.h` e renomeie a cópia para **`secrets.h`**. Abra e preencha com os seus dados:
+
+```cpp
+#define WIFI_SSID     "NomeDaSuaRede"
+#define WIFI_PASSWORD "SenhaDoSeuWiFi"
+
+#define MQTT_HOST     "xxxxxxxxxxxx.s1.eu.hivemq.cloud"
+#define MQTT_PORT     8883
+#define MQTT_USER     "usuario-do-esp32"
+#define MQTT_PASSWORD "senha-do-usuario-do-esp32"
+
+#define WOL_MAC       "AA:BB:CC:DD:EE:FF"
+```
+
+| Campo | O que colocar | Onde achar |
+| --- | --- | --- |
+| `WIFI_SSID` | Nome do seu Wi-Fi (**2,4 GHz**) | Ícone de Wi-Fi do PC/celular |
+| `WIFI_PASSWORD` | Senha desse Wi-Fi | Sua rede |
+| `MQTT_HOST` | URL do cluster, **sem** `https://` e **sem** porta | HiveMQ → *Visão geral* → URL |
+| `MQTT_PORT` | Deixe `8883` | Porta MQTT com TLS (o app usa a 8884 sozinho) |
+| `MQTT_USER` | Usuário criado **para o ESP32** | HiveMQ → *Gestão de Acessos* |
+| `MQTT_PASSWORD` | Senha desse usuário | Anotada quando você criou |
+| `WOL_MAC` | MAC da placa de rede **do PC que vai ligar** | `ipconfig /all` → *Endereço Físico* (pode usar `:` ou `-`) |
+
+> ⚠️ Mantenha as **aspas**. O `MQTT_USER` é o usuário do **ESP32**, não o do app.
+>
+> O `secrets.h` fica só no seu computador: ele já está no `.gitignore`.
+
+**b) Instale o que o Arduino IDE precisa**
+
+- **Placas:** *Gerenciador de Placas* → procure `esp32` → instale o pacote **esp32 by Espressif Systems** (não o "Arduino ESP32 Boards").
+- **Biblioteca:** *Gerenciador de Bibliotecas* → instale **PubSubClient** (de Nick O'Leary).
+- `WiFi`, `WiFiClientSecure` e `WiFiUdp` já vêm junto com o pacote esp32.
+
+**c) Grave**
+
+1. Abra o arquivo `esp32-pc-remote/esp32-pc-remote.ino` (a pasta precisa continuar com o nome `esp32-pc-remote`).
+2. *Ferramentas → Placa →* **ESP32 Dev Module**.
+3. *Ferramentas → Porta →* a porta do ESP32.
+4. Clique em **Upload**.
+
+**d) Confira**
+
+Abra o *Monitor Serial* em **115200 baud**. Deve aparecer:
+
+```
+[WiFi] Conectado! IP: 192.168.x.x  RSSI: -50 dBm
+[MQTT] Conectado!
+```
+
+Para testar sem o app, digite `LIGAR` no Monitor Serial (com fim de linha *Nova linha*) ou aperte o botão **BOOT** da placa.
+
+> 🔧 O `ca_cert.h` já traz os certificados usados pelo HiveMQ Cloud (Let's Encrypt). Só troque se for usar outro broker.
 
 <details>
 <summary>⚠️ Deu erro <code>Wrong boot mode detected (0x13)</code> no upload?</summary>
 
-Placas com chip **CH340** às vezes não entram sozinhas em modo de gravação. Faça assim: segure **BOOT**, aperte e solte **EN**, solte **BOOT** e rode o upload de novo. Este repositório também traz o `flash.ps1`, que grava a 115200 baud sem auto-reset (para Windows/PowerShell com arduino-cli).
+Placas com chip **CH340** às vezes não entram sozinhas em modo de gravação. Faça assim: segure **BOOT**, aperte e solte **EN**, solte **BOOT** e rode o upload de novo.
 
 </details>
 
@@ -143,10 +195,12 @@ esp32-pc-remote/
 ├── ca_cert.h              certificados raiz para validar o TLS do broker
 └── secrets.example.h      modelo de configuração (copie para secrets.h)
 
-flash.ps1                  compila e grava (Windows/PowerShell)
-monitor.ps1                lê a Serial e envia comandos
-mqtt-test.ps1              testa o broker pelo PC (escuta e envia comandos)
+flash.ps1                  (opcional) compila e grava pelo PowerShell
+monitor.ps1                (opcional) lê a Serial e envia comandos
+mqtt-test.ps1              (opcional) testa o broker pelo PC
 ```
+
+Os três scripts `.ps1` são atalhos do meu setup: **Windows**, Arduino IDE 2 instalado na pasta padrão e ESP32 na porta `COM3`. Se quiser usá-los, passe a sua porta (ex.: `-Port COM5`). Pelo Arduino IDE normal você **não precisa deles**.
 
 ## 🗺️ Como o projeto foi construído
 
