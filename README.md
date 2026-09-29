@@ -209,7 +209,7 @@ Os três scripts `.ps1` são atalhos do meu setup: **Windows**, Arduino IDE 2 in
 - [x] **Fase 3:** Wake-on-LAN local, testado com o PC desligado
 - [x] **Fase 4:** MQTT com TLS no HiveMQ Cloud
 - [x] **Fase 5:** app web (PWA) instalável no celular
-- [ ] **Próximos passos:** revisão final de segurança e detecção do estado real do PC (ligado/desligado)
+- [x] **Próximos passos:** revisão final de segurança e detecção do estado real do PC (ligado/desligado)
 
 ---
 
