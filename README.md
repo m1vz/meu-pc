@@ -9,7 +9,7 @@
 ![Wake-on-LAN](https://img.shields.io/badge/Wake--on--LAN-Magic%20Packet-2ea44f)
 ![PWA](https://img.shields.io/badge/App-PWA-5a0fc8?logo=pwa&logoColor=white)
 
-### 👉 [Abrir o app]([https://m1vz.github.io/meu-pc-app/](https://m1vz.github.io/m1vz-WOL/)) 👈
+### 👉 [Abrir o app](https://m1vz.github.io/m1vz-WOL/) 👈
 
 *Você não precisa hospedar nada: é só abrir o link, digitar os dados do **seu** broker e pronto.*
 
