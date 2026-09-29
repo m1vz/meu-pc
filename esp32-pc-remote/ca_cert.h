@@ -1,5 +1,3 @@
-// Certificados raiz da Let's Encrypt (ISRG Root X1 = RSA, X2 = ECDSA), usados para validar
-// o TLS do broker (HiveMQ Cloud usa certificados Let's Encrypt). Válidos até 2035 / 2040.
 #pragma once
 
 static const char CA_CERT[] PROGMEM = R"PEM(

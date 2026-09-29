@@ -1,4 +1,3 @@
-# Le a Serial do ESP32 por alguns segundos (opcionalmente envia um comando).
 param(
   [string]$Port = "COM3",
   [int]$Seconds = 6,

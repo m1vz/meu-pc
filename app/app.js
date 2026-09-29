@@ -1,5 +1,3 @@
-// Meu PC — PWA que envia LIGAR ao ESP32 pelo HiveMQ Cloud (MQTT sobre WebSocket seguro, porta 8884)
-
 const TOPIC_COMANDO = 'meu-pc/comando';
 const TOPIC_STATUS = 'meu-pc/status';
 const TOPIC_RESPOSTA = 'meu-pc/resposta';
@@ -9,7 +7,7 @@ const CONFIG_KEY = 'meu-pc-config';
 const $ = id => document.getElementById(id);
 let client = null;
 let espOnline = false;
-let pending = null;  // { comando, timer } aguardando a resposta do ESP32
+let pending = null;
 
 function loadConfig() {
   try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || null; } catch { return null; }
@@ -76,7 +74,6 @@ function connect() {
   client.on('close', updatePowerButton);
 
   client.on('error', err => {
-    // 4/5 (MQTT 3.1.1) ou 134/135 (MQTT 5) = usuário/senha recusados: não adianta ficar tentando
     if ([4, 5, 134, 135].includes(err.code)) {
       client.end(true);
       setPill('broker', 'bad', 'Login recusado');
@@ -121,7 +118,6 @@ function handleResposta(text) {
 
 function ligar() {
   if (!client || !client.connected || pending) return;
-  // Sem retain: um LIGAR retido seria reexecutado a cada reconexão do ESP32
   client.publish(TOPIC_COMANDO, 'LIGAR', { qos: 1, retain: false });
   if (navigator.vibrate) navigator.vibrate(30);
   $('power').classList.add('busy');
@@ -162,7 +158,6 @@ $('settings-form').addEventListener('submit', e => {
   connect();
 });
 
-// Ao voltar para o app (celular tira a aba do segundo plano), reconecta se a conexão caiu
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && client && !client.connected && loadConfig()) client.reconnect();
 });

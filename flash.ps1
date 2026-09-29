@@ -1,5 +1,3 @@
-# Compila o sketch e grava no ESP32.
-# Antes de rodar: coloque a placa em modo download (segure BOOT, aperte/solte EN, solte BOOT).
 param(
   [string]$Port = "COM3",
   [switch]$SkipCompile
@@ -17,7 +15,6 @@ if (-not $SkipCompile) {
   if ($LASTEXITCODE -ne 0) { throw "Falha na compilacao" }
 }
 
-# --before no-reset: não mexe em DTR/RTS (o reset automático tira a placa do modo download nesta placa CH340)
 & $esptool --chip esp32 --port $Port --baud 115200 --before no-reset --after hard-reset `
   write-flash -z 0x0 "$build\esp32-pc-remote.ino.merged.bin"
 if ($LASTEXITCODE -ne 0) { throw "Falha no upload" }

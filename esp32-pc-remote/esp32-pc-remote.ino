@@ -1,5 +1,3 @@
-// ESP32 PC Remote — Fase 4: Wi-Fi + Wake-on-LAN + MQTT (comando LIGAR por MQTT, Serial ou botão BOOT)
-
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <WiFiClientSecure.h>
@@ -7,22 +5,18 @@
 #include "secrets.h"
 #include "ca_cert.h"
 
-const unsigned long WIFI_RETRY_MS = 10000;  // intervalo entre tentativas manuais de reconexão
+const unsigned long WIFI_RETRY_MS = 10000;
 
-// MQTT: comando recebido em TOPIC_COMANDO; TOPIC_STATUS é retido ("online"/"offline" via Last Will);
-// TOPIC_RESPOSTA confirma cada comando recebido por MQTT
 const char* TOPIC_COMANDO = "meu-pc/comando";
 const char* TOPIC_STATUS = "meu-pc/status";
 const char* TOPIC_RESPOSTA = "meu-pc/resposta";
 const unsigned long MQTT_RETRY_MS = 5000;
-const unsigned long LIGAR_COOLDOWN_MS = 5000;  // ignora LIGAR repetido em sequência (ex.: toque duplo no app)
+const unsigned long LIGAR_COOLDOWN_MS = 5000;
 
-// MAC da placa de rede do PC (B0-82-E2-4B-C2-9A)
 const uint8_t PC_MAC[6] = {0xB0, 0x82, 0xE2, 0x4B, 0xC2, 0x9A};
 const uint16_t WOL_PORT = 9;
-const int WOL_REPEAT = 3;  // UDP não tem confirmação; repetir aumenta a chance de chegar
+const int WOL_REPEAT = 3;
 
-// Botão BOOT (GPIO0, ativo em LOW) como atalho para LIGAR; LED azul (GPIO2) dá o feedback
 const int BUTTON_PIN = 0;
 const int LED_PIN = 2;
 const unsigned long DEBOUNCE_MS = 50;
@@ -67,8 +61,6 @@ void connectWifi() {
   lastWifiAttempt = millis();
 }
 
-// O driver já tenta reconectar sozinho (setAutoReconnect); isto é uma garantia extra
-// caso ele desista (ex.: roteador ficou fora do ar por muito tempo).
 void ensureWifi() {
   if (WiFi.status() == WL_CONNECTED) return;
   if (millis() - lastWifiAttempt < WIFI_RETRY_MS) return;
@@ -77,7 +69,6 @@ void ensureWifi() {
   connectWifi();
 }
 
-// Magic Packet: 6 bytes 0xFF + MAC repetido 16 vezes (102 bytes)
 bool sendMagicPacket() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[WoL] ERRO: sem Wi-Fi, pacote não enviado");
@@ -88,7 +79,6 @@ bool sendMagicPacket() {
   memset(packet, 0xFF, 6);
   for (int i = 0; i < 16; i++) memcpy(packet + 6 + i * 6, PC_MAC, 6);
 
-  // Broadcast da sub-rede (ex.: 192.168.1.255) e broadcast global
   IPAddress ip = WiFi.localIP();
   IPAddress mask = WiFi.subnetMask();
   IPAddress subnetBroadcast(ip[0] | ~mask[0], ip[1] | ~mask[1], ip[2] | ~mask[2], ip[3] | ~mask[3]);
@@ -121,8 +111,6 @@ void blinkLed(int times, int ms) {
   }
 }
 
-// LED: 3 piscadas rápidas = pacote enviado; 1 piscada longa = falhou (ex.: sem Wi-Fi)
-// Retorna o resultado para ser repassado em TOPIC_RESPOSTA
 const char* ligarPc() {
   if (hasLigado && millis() - lastLigar < LIGAR_COOLDOWN_MS) {
     Serial.println("[WoL] LIGAR repetido em menos de 5 s, ignorado");
@@ -169,7 +157,6 @@ void setupMqtt() {
   mqttClientId = "esp32-pc-remote-" + String((uint32_t)ESP.getEfuseMac(), HEX);
 }
 
-// Conecta ao broker com Last Will: se o ESP32 cair, o broker publica "offline" (retido) sozinho
 void ensureMqtt() {
   if (mqtt.connected()) return;
   if (WiFi.status() != WL_CONNECTED) return;
@@ -184,7 +171,6 @@ void ensureMqtt() {
     mqtt.publish(TOPIC_STATUS, "online", true);
     mqtt.subscribe(TOPIC_COMANDO, 1);
   } else {
-    // -2 = falha de rede/TLS (host, porta ou certificado); 4/5 = usuário/senha recusados
     Serial.print("[MQTT] Falhou, estado ");
     Serial.print(mqtt.state());
     Serial.println(", nova tentativa em 5 s");
@@ -250,7 +236,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.setHostname("esp32-pc-remote");
   WiFi.setAutoReconnect(true);
-  WiFi.setSleep(false);  // menor latência para receber comandos
+  WiFi.setSleep(false);
   WiFi.onEvent(onWifiEvent);
   connectWifi();
   setupMqtt();
@@ -263,6 +249,6 @@ void loop() {
   mqtt.loop();
   readSerial();
   readButton();
-  digitalWrite(LED_PIN, WiFi.status() == WL_CONNECTED ? HIGH : LOW);  // LED aceso = Wi-Fi conectado
+  digitalWrite(LED_PIN, WiFi.status() == WL_CONNECTED ? HIGH : LOW);
   delay(10);
 }
