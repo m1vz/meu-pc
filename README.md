@@ -215,6 +215,6 @@ Os três scripts `.ps1` são atalhos do meu setup: **Windows**, Arduino IDE 2 in
 
 <div align="center">
 
-Feito com 🔌 por [@m1vz](https://github.com/m1vz)
+By [@m1vz](https://github.com/m1vz)
 
 </div>
